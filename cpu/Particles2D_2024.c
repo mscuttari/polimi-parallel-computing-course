@@ -469,14 +469,14 @@ void readConfiguration(char *InputFile) {
     MPI_Bcast(&ParticleGrid.yEnd, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     // Grid allocations.
-    GenFieldGrid.values = malloc(GenFieldGrid.width * GenFieldGrid.height * sizeof(int));
+    GenFieldGrid.values = (int *) malloc(GenFieldGrid.width * GenFieldGrid.height * sizeof(int));
 
     if (!GenFieldGrid.values) {
         fprintf(stderr, "Process %d: Error allocating GenFieldGrid.Values\n", procId);
         EXIT(-1);
     }
 
-    ParticleGrid.values = malloc(ParticleGrid.width * ParticleGrid.height * sizeof(int));
+    ParticleGrid.values = (int *) malloc(ParticleGrid.width * ParticleGrid.height * sizeof(int));
 
     if (!ParticleGrid.values) {
         fprintf(stderr, "Process %d: Error allocating ParticleGrid.Values\n", procId);
@@ -510,8 +510,8 @@ void GeneratingField(struct i2dGrid *grid, int maxIterations) {
     // Determine the range of rows handled by each process.
     int rowsPerProcess = height / nProcs;
     int processRowCount = 0;
-    int *procElementsCounts = malloc(nProcs * sizeof(int));
-    int *dataDisplacements = malloc(nProcs * sizeof(int));
+    int *procElementsCounts = (int *) malloc(nProcs * sizeof(int));
+    int *dataDisplacements = (int *) malloc(nProcs * sizeof(int));
 
     for (int i = 0; i < nProcs; i++) {
         int startRow = i * rowsPerProcess;
@@ -613,11 +613,11 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
     }
 
     // Allocate memory space for particles.
-    population->weight = malloc(population->amount * sizeof(double));
-    population->x = malloc(population->amount * sizeof(double));
-    population->y = malloc(population->amount * sizeof(double));
-    population->vx = malloc(population->amount * sizeof(double));
-    population->vy = malloc(population->amount * sizeof(double));
+    population->weight = (double *) malloc(population->amount * sizeof(double));
+    population->x = (double *) malloc(population->amount * sizeof(double));
+    population->y = (double *) malloc(population->amount * sizeof(double));
+    population->vx = (double *) malloc(population->amount * sizeof(double));
+    population->vy = (double *) malloc(population->amount * sizeof(double));
 
     // Initialize the particles.
     int initialized = 0;
@@ -691,7 +691,7 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
     }
 
     // Temporary array of forces.
-    double *forces = malloc(2 * population->amount * sizeof(double));
+    double *forces = (double *) malloc(2 * population->amount * sizeof(double));
 
     if (!forces) {
         fprintf(stderr, "Process %d: Error mem alloc of forces!\n", procId);
@@ -1115,6 +1115,9 @@ int main(int argc, char *argv[]) {
 
         fprintf(stdout, "End of program!\n");
     }
+
+    free(GenFieldGrid.values);
+    free(ParticleGrid.values);
 
     // Finalize the MPI environment.
     MPI_Finalize();
