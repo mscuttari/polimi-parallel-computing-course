@@ -672,12 +672,6 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
 }
 
 void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int numSteps) {
-    /*
-    if (procId != 0) {
-        return;
-    }
-     */
-
     // Determine the number of particles handled by the process.
     int *particlesPerProcess = (int *) malloc(nProcs * sizeof(int));
     int *particlesDisplacements = (int *) malloc(nProcs * sizeof(int));
