@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Test C)
+project(Particles C)
 
 set(CMAKE_C_STANDARD 11)
 
