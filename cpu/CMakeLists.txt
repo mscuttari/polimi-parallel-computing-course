@@ -19,4 +19,4 @@ if (OpenACC_FOUND)
 endif()
 
 add_executable(Particles Particles2D_2024.c)
-target_link_libraries(Particles m MPI::MPI_C)
+target_link_libraries(Particles m MPI::MPI_C OpenMP::OpenMP_C)
