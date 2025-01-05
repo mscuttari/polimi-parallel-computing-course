@@ -186,11 +186,11 @@ void computeForces(double *forces, struct particle p1, struct particle p2) {
 void applyForces(struct population *p, int beginParticle, int endParticle, double *forces) {
     #pragma omp parallel for default(none) shared(timeStep, p, forces, beginParticle, endParticle)
     for (int i = beginParticle; i < endParticle; i++) {
-        p->x[i] = p->x[i] + (p->vx[i] * timeStep) + (0.5 * forces[index2D(0, i, 2)] * timeStep * timeStep / p->weight[i]);
-        p->vx[i] = p->vx[i] + forces[index2D(0, i, 2)] * timeStep / p->weight[i];
+        p->x[i] = p->x[i] + (p->vx[i] * timeStep) + (0.5 * forces[index2D(0, i - beginParticle, 2)] * timeStep * timeStep / p->weight[i]);
+        p->vx[i] = p->vx[i] + forces[index2D(0, i - beginParticle, 2)] * timeStep / p->weight[i];
 
-        p->y[i] = p->y[i] + (p->vy[i] * timeStep) + (0.5 * forces[index2D(1, i, 2)] * timeStep * timeStep / p->weight[i]);
-        p->vy[i] = p->vy[i] + forces[index2D(1, i, 2)] * timeStep / p->weight[i];
+        p->y[i] = p->y[i] + (p->vy[i] * timeStep) + (0.5 * forces[index2D(1, i - beginParticle, 2)] * timeStep * timeStep / p->weight[i]);
+        p->vy[i] = p->vy[i] + forces[index2D(1, i - beginParticle, 2)] * timeStep / p->weight[i];
     }
 }
 
@@ -685,7 +685,7 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
     }
 
     // Temporary array of forces.
-    double *forces = (double *) malloc(2 * population->amount * sizeof(double));
+    double *forces = (double *) malloc(2 * particlesPerProcess[procId] * sizeof(double));
 
     if (!forces) {
         fprintf(stderr, "Process %d: Error mem alloc of forces!\n", procId);
@@ -711,7 +711,7 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
         }
 
         // Set forces to zero.
-        memset(forces, 0, 2 * population->amount * sizeof(double));
+        memset(forces, 0, 2 * particlesPerProcess[procId] * sizeof(double));
 
         // Compute the forces applied to the particles.
         #pragma omp parallel for default(none) shared(beginParticle, endParticle, population, forces)
@@ -725,8 +725,8 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
                     double f[2];
                     computeForces(f, p1, p2);
 
-                    forces[index2D(0, i, 2)] += f[0];
-                    forces[index2D(1, i, 2)] += f[1];
+                    forces[index2D(0, i - beginParticle, 2)] += f[0];
+                    forces[index2D(1, i - beginParticle, 2)] += f[1];
                 }
             }
         }
