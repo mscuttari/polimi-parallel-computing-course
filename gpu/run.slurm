@@ -8,8 +8,8 @@
 #SBATCH --mem=16GB            # memory/node (max 481GB, 4 GB/core)
 #SBATCH --gres=gpu:1          # number of GPUs per node (max 4)
 #SBATCH --job-name=particles_gpu
-#SBATCH --error=err-%J.err    # stderr file
-#SBATCH --output=out-%J.out   # stdout file
+#SBATCH --error=stderr.log    # stderr file
+#SBATCH --output=stdout.log   # stdout file
 
 module purge
 module load nvhpc
