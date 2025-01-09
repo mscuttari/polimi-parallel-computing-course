@@ -18,8 +18,8 @@ module load openmpi
 module load intel-oneapi-compilers
 
 cd $SLURM_SUBMIT_DIR || exit 1
-rm -f Particles2D_2024
 
+make clean
 make
 mpirun --mca mpi_yield_when_idle 1 --bind-to none -n 1 ./Particles2D_2024
 make tar
