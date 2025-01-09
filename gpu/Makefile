@@ -12,6 +12,9 @@ all: $(TARGET)
 $(TARGET): $(SRC)
 	$(NVCC) $(CFLAGS) -o $@ $<
 
+tar:
+	tar -cvf archive.tar stage* Population*
+
 # Clean rule
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) archive.tar
