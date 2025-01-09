@@ -13,7 +13,7 @@ $(TARGET): $(SRC)
 	$(NVCC) $(CFLAGS) -o $@ $<
 
 tar:
-	tar -cvf archive.tar stage*.ppm Population*.dmp
+	tar -cf archive.tar stage*.ppm Population*.dmp
 
 # Clean rule
 clean:
