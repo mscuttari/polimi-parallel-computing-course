@@ -4,9 +4,9 @@
 #SBATCH -p boost_usr_prod
 #SBATCH --time=0:30:00        # format: HH:MM:SS
 #SBATCH --nodes=1             # -N nodes
-#SBATCH --ntasks-per-node=1   # MPI tasks/node (max 32)
+#SBATCH --ntasks-per-node=4   # MPI tasks/node (max 32)
 #SBATCH --mem=16GB            # memory/node (max 481GB, 4 GB/core)
-#SBATCH --gres=gpu:1          # number of GPUs per node (max 4)
+#SBATCH --gres=gpu:4          # number of GPUs per node (max 4)
 #SBATCH --job-name=particles_gpu
 #SBATCH --error=stderr.log    # stderr file
 #SBATCH --output=stdout.log   # stdout file
