@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH -A try25_mscuttari
+#SBATCH -A try25_scuttari
 #SBATCH -p boost_usr_prod
 #SBATCH --time=0:30:00        # format: HH:MM:SS
 #SBATCH --nodes=1             # -N nodes
