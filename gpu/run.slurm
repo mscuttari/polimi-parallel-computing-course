@@ -12,7 +12,8 @@
 #SBATCH --output=out-%J.out   # stdout file
 
 module purge
-module load autoload
+module load nvhpc
+module load openmpi
 
 cd $SLURM_SUBMIT_DIR || exit 1
 module load intel-oneapi-compilers
