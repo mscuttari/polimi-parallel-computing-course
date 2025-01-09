@@ -14,7 +14,7 @@
 module purge
 module load autoload
 
-cd $SLURM_SUBMIT_DIR
+cd $SLURM_SUBMIT_DIR || exit 1
 module load intel-oneapi-compilers
 rm -f Particles2D_2024
 
