@@ -11,9 +11,11 @@
 #SBATCH --error=stderr.log    # stderr file
 #SBATCH --output=stdout.log   # stdout file
 
-cd $SLURM_SUBMIT_DIR
 module load intel-oneapi-compilers
-rm -f Particles2D_2024
-icc -O3 Particles2D_2024.c -o Particles2D_2024 ../Particles.inp
-./Particles2D_2024
-echo "the end"
+
+cd $SLURM_SUBMIT_DIR || exit 1
+
+make clean
+make
+./Particles2D_2024 ../Particles.inp
+make tar
