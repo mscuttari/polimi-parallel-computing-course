@@ -22,5 +22,11 @@ cd $SLURM_SUBMIT_DIR || exit 1
 
 make clean
 make
-srun ./Particles2D_2024 ../Particles.inp
+
+#srun ./Particles2D_2024 ../Particles.inp
+
+export TMPDIR=/dev/shm
+ln -s $TMPDIR /tmp/nvidia
+mpirun nsys profile -o ${PWD}/output_%q{OMPI_COMM_WORLD_RANK} -f true --stats=true --cuda-memory-usage=true ./Particles2D_2024 ../Particles.inp
+
 make tar
