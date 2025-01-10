@@ -11,6 +11,7 @@
 #SBATCH --error=stderr.log    # stderr file
 #SBATCH --output=stdout.log   # stdout file
 
+module purge
 module load intel-oneapi-compilers
 
 cd $SLURM_SUBMIT_DIR || exit 1
