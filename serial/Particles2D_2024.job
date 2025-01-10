@@ -2,6 +2,7 @@
 
 #SBATCH -A try25_scuttari
 #SBATCH -p boost_usr_prod
+#SBATCH --exclusive
 #SBATCH --time=0:30:00        # max 24:00:00
 #SBATCH --nodes=1             # -N nodes 
 #SBATCH --ntasks-per-node=1   # MPI tasks/node (max 32)
