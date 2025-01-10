@@ -1,15 +1,16 @@
 #!/bin/bash
+
+#SBATCH -A try25_scuttari
+#SBATCH -p boost_usr_prod
+#SBATCH --time=0:30:00        # max 24:00:00
 #SBATCH --nodes=1             # -N nodes 
 #SBATCH --ntasks-per-node=1   # MPI tasks/node (max 32)
-#SBATCH --cpus-per-task=4     # OpenMP threads/task (max 32 / tasks/node)
-#SBATCH --time=0:30:00        # max 24:00:00
+#SBATCH --cpus-per-task=1     # OpenMP threads/task (max 32 / tasks/node)
 #SBATCH --mem=16GB            # memory/node (max 481GB, 4 GB/core)
-#SBATCH --account=cin_staff	# -A account_name
-#SBATCH -p dcgp_usr_prod 	# 
-#SBATCH -q dcgp_qos_dbg  	# 
-#SBATCH --job-name=myJob             # job_name
-#SBATCH --error=err-%J.err    # stderr file
-#SBATCH --output=out-%J.out   # stdout file
+#SBATCH --job-name=particles_serial
+#SBATCH --error=stderr.log    # stderr file
+#SBATCH --output=stdout.log   # stdout file
+
 cd $SLURM_SUBMIT_DIR
 module load intel-oneapi-compilers
 rm -f Particles2D_2024

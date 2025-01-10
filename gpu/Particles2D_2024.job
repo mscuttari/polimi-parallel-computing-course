@@ -6,8 +6,9 @@
 #SBATCH --nodes=1             # -N nodes
 #SBATCH --ntasks-per-node=4   # MPI tasks/node (max 32)
 #SBATCH --mem=16GB            # memory/node (max 481GB, 4 GB/core)
+#SBATCH --cpus-per-task=32    # OpenMP threads/task (max 32 / tasks/node)
 #SBATCH --gres=gpu:4          # number of GPUs per node (max 4)
-#SBATCH --job-name=particles_gpu
+#SBATCH --job-name=particles_cuda
 #SBATCH --error=stderr.log    # stderr file
 #SBATCH --output=stdout.log   # stdout file
 
