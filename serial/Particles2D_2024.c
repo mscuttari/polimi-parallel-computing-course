@@ -870,13 +870,19 @@ int IntVal2ppmB(int s1, int s2, int *idata, int *vmin, int *vmax, char* name)
 
 int main( int argc, char *argv[])    /* FinalApplication */
 {
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <configuration_file>\n", argv[0]);
+        exit(-1);
+    }
+
 #include <time.h>
    time_t t0, t1;
    
    time(&t0);
    fprintf(stdout,"Starting at: %s", asctime(localtime(&t0)));
    
-   InitGrid("Particles.inp");
+   InitGrid(argv[1]);
 
    // GenFieldGrid initialization
    printf("GeneratingField...\n");

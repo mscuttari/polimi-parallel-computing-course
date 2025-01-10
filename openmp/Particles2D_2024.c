@@ -1071,6 +1071,11 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
     MPI_Comm_rank(MPI_COMM_WORLD, &procId);
 
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <configuration_file>\n", argv[0]);
+        EXIT(-1);
+    }
+
     // Run the main program.
     time_t t0, t1;
 
@@ -1079,7 +1084,7 @@ int main(int argc, char *argv[]) {
         fprintf(stdout, "Starting at: %s", asctime(localtime(&t0)));
     }
 
-    readConfiguration("Particles.inp");
+    readConfiguration(argv[1]);
 
     // Initialize the generating field.
     if (procId == 0) {

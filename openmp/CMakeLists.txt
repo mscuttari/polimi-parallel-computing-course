@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Particles C)
+project(Particles_OpenMP C)
 
 set(CMAKE_C_STANDARD 11)
 
@@ -12,5 +12,5 @@ if (OpenMP_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-add_executable(Particles Particles2D_2024.c)
-target_link_libraries(Particles m MPI::MPI_C OpenMP::OpenMP_C)
+add_executable(Particles_OpenMP Particles2D_2024.c)
+target_link_libraries(Particles_OpenMP m MPI::MPI_C OpenMP::OpenMP_C)

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(Particles CUDA C)
+project(Particles_CUDA CUDA C)
 
 set(CMAKE_C_STANDARD 11)
 
@@ -12,9 +12,9 @@ if (OpenMP_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-add_executable(Particles Particles2D_2024.cu)
-target_link_libraries(Particles m MPI::MPI_C OpenMP::OpenMP_C)
+add_executable(Particles_CUDA Particles2D_2024.cu)
+target_link_libraries(Particles_CUDA m MPI::MPI_C OpenMP::OpenMP_C)
 
 if (OpenMP_FOUND)
-    target_compile_options(Particles PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=-fopenmp>)
+    target_compile_options(Particles_CUDA PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler=-fopenmp>)
 endif()
