@@ -17,4 +17,4 @@ tar:
 
 # Clean rule
 clean:
-	rm -f $(TARGET) archive.tar stage*.ppm normstage*.png Population*.dmp Population.sta
+	rm -f $(TARGET) stage*.ppm normstage*.png Population*.dmp Population.sta
