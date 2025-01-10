@@ -12,7 +12,6 @@
 #SBATCH --output=stdout.log   # stdout file
 
 module purge
-module load cmake
 module load nvhpc
 module load openmpi
 module load intel-oneapi-compilers
