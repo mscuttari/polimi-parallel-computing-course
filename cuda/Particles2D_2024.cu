@@ -1210,6 +1210,7 @@ int main(int argc, char *argv[]) {
     checkCuda(cudaSetDevice(procId % numGPUs));
 
     printf("Process %d using GPU %d\n", procId, procId % numGPUs);
+    MPI_Barrier(MPI_COMM_WORLD);
 
     // Run the main program.
     struct timespec t0;
