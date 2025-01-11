@@ -1209,6 +1209,8 @@ int main(int argc, char *argv[]) {
     cudaGetDeviceCount(&numGPUs);
     checkCuda(cudaSetDevice(procId % numGPUs));
 
+    printf("Process %d using GPU %d\n", procId, procId % numGPUs);
+
     // Run the main program.
     struct timespec t0;
     time_t t0s;
