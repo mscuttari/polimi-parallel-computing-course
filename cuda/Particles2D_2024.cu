@@ -157,7 +157,7 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
 void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int numSteps);
 
 /// Gather the particles data computed by each process.
-void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements);
+void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements, double *sendBuffer);
 
 // ----------------------------------------------------------------------------
 // Function implementations.
@@ -171,24 +171,34 @@ void configParticle(struct particle *p, double weight, double x, double y, doubl
     p->vy = vy;
 }
 
-void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements) {
-    MPI_Allgatherv(population->weight + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements, double *sendBuffer) {
+    memcpy(sendBuffer, population->weight + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->weight, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->x + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->x + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->x, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->y + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->y + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->y, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->vx + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->vx + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->vx, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->vy + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->vy + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->vy, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 }
@@ -706,7 +716,9 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
     checkCuda(cudaFree(d_y));
 
     // Gather data from processes.
-    gatherParticles(population, particlesPerProcess, particlesDisplacements);
+    double *particlesSendBuffer = (double *) malloc(particlesPerProcess[procId] * sizeof(double));
+    gatherParticles(population, particlesPerProcess, particlesDisplacements, particlesSendBuffer);
+    free(particlesSendBuffer);
 
     if (procId == 0) {
         print_Population(*population);
@@ -787,6 +799,8 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
         particlesDisplacements[i] = beginParticle;
     }
 
+    double *particlesSendBuffer = (double *) malloc(particlesPerProcess[procId] * sizeof(double));
+
     int beginParticle = particlesDisplacements[procId];
     int endParticle = particlesDisplacements[procId] + particlesPerProcess[procId];
 
@@ -855,7 +869,7 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
         checkCuda(cudaDeviceSynchronize());
 
         // Gather data from processes.
-        gatherParticles(population, particlesPerProcess, particlesDisplacements);
+        gatherParticles(population, particlesPerProcess, particlesDisplacements, particlesSendBuffer);
     }
 
     // Unpin the memory.
@@ -867,6 +881,7 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
     // Deallocate the memory.
     free(particlesPerProcess);
     free(particlesDisplacements);
+    free(particlesSendBuffer);
     
     checkCuda(cudaFree(d_weights));
     checkCuda(cudaFree(d_x));
