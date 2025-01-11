@@ -877,10 +877,12 @@ int main( int argc, char *argv[])    /* FinalApplication */
     }
 
 #include <time.h>
-   time_t t0, t1;
-   
-   time(&t0);
-   fprintf(stdout,"Starting at: %s", asctime(localtime(&t0)));
+   struct timespec t0;
+   time_t t0s;
+
+   time(&t0s);
+   clock_gettime(CLOCK_MONOTONIC, &t0);
+   fprintf(stdout, "Starting at: %s", asctime(localtime(&t0s)));
    
    InitGrid(argv[1]);
 
@@ -895,12 +897,15 @@ int main( int argc, char *argv[])    /* FinalApplication */
    // Compute evolution of the particle population
    printf("SystemEvolution...\n");
    SystemEvolution(&ParticleGrid, &Particles, MaxSteps);
-   
-   time(&t1);
-   fprintf(stdout,"Ending   at: %s", asctime(localtime(&t1)));
-   fprintf(stdout,"Computations ended in %lf seconds\n",difftime(t1,t0));
 
-   fprintf(stdout,"End of program!\n");
+   struct timespec t1;
+   time_t t1s;
+   clock_gettime(CLOCK_MONOTONIC, &t1);
+   time(&t1s);
+
+   fprintf(stdout, "Ending   at: %s", asctime(localtime(&t1s)));
+   fprintf(stdout, "Computations ended in %lf seconds\n", (double) (t1.tv_nsec - t0.tv_nsec) / 1000000000.0 + (double) (t1.tv_sec - t0.tv_sec));
+
 
    return(0);
 }  // end FinalApplication

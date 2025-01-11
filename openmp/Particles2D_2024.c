@@ -1077,11 +1077,13 @@ int main(int argc, char *argv[]) {
     }
 
     // Run the main program.
-    time_t t0, t1;
+    struct timespec t0;
+    time_t t0s;
 
     if (procId == 0) {
-        time(&t0);
-        fprintf(stdout, "Starting at: %s", asctime(localtime(&t0)));
+        time(&t0s);
+        clock_gettime(CLOCK_MONOTONIC, &t0);
+        fprintf(stdout, "Starting at: %s", asctime(localtime(&t0s)));
     }
 
     readConfiguration(argv[1]);
@@ -1108,9 +1110,14 @@ int main(int argc, char *argv[]) {
     SystemEvolution(&ParticleGrid, &particles, MaxSteps);
 
     if (procId == 0) {
-        time(&t1);
-        fprintf(stdout, "Ending   at: %s", asctime(localtime(&t1)));
-        fprintf(stdout, "Computations ended in %lf seconds\n", difftime(t1, t0));
+        struct timespec t1;
+        time_t t1s;
+
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        time(&t1s);
+
+        fprintf(stdout, "Ending   at: %s", asctime(localtime(&t1s)));
+        fprintf(stdout, "Computations ended in %lf seconds\n", (double) (t1.tv_nsec - t0.tv_nsec) / 1000000000.0 + (double) (t1.tv_sec - t0.tv_sec));
 
         fprintf(stdout, "End of program!\n");
     }
