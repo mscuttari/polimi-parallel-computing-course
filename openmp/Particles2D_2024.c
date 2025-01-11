@@ -150,7 +150,7 @@ void computeForces(double *f, struct particle p1, struct particle p2);
 void applyForces(struct population *p, int beginParticle, int endParticle, double *forces);
 
 /// Gather the particles data computed by each process.
-void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements);
+void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements, double *sendBuffer);
 
 // ----------------------------------------------------------------------------
 // Function implementations.
@@ -194,9 +194,7 @@ void applyForces(struct population *p, int beginParticle, int endParticle, doubl
     }
 }
 
-void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements) {
-    double *sendBuffer = (double *) malloc(particlesPerProcess[procId] * sizeof(double));
-
+void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements, double *sendBuffer) {
     memcpy(sendBuffer, population->weight + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
 
     MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
@@ -226,8 +224,6 @@ void gatherParticles(struct population *population, int *particlesPerProcess, in
     MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->vy, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
-
-    free(sendBuffer);
 }
 
 void readConfiguration(char *InputFile) {
@@ -679,7 +675,9 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
     }
 
     // Gather data from processes.
-    gatherParticles(population, particlesPerProcess, particlesDisplacements);
+    double *particlesSendBuffer = (double *) malloc(particlesPerProcess[procId] * sizeof(double));
+    gatherParticles(population, particlesPerProcess, particlesDisplacements, particlesSendBuffer);
+    free(particlesSendBuffer);
 
     if (procId == 0) {
         print_Population(*population);
@@ -701,6 +699,8 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
         particlesPerProcess[i] = endParticle - beginParticle;
         particlesDisplacements[i] = beginParticle;
     }
+
+    double *particlesSendBuffer = (double *) malloc(particlesPerProcess[procId] * sizeof(double));
 
     // Temporary array of forces.
     double *forces = (double *) malloc(2 * particlesPerProcess[procId] * sizeof(double));
@@ -753,11 +753,12 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
         applyForces(population, beginParticle, endParticle, forces);
 
         // Gather data from processes.
-        gatherParticles(population, particlesPerProcess, particlesDisplacements);
+        gatherParticles(population, particlesPerProcess, particlesDisplacements, particlesSendBuffer);
     }
 
     free(particlesPerProcess);
     free(particlesDisplacements);
+    free(particlesSendBuffer);
     free(forces);
 }
 
