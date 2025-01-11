@@ -12,12 +12,12 @@
 #SBATCH --output=stdout.log   # stdout file
 
 module purge
-module load openmpi
 module load intel-oneapi-compilers
+module load intel-oneapi-mpi
 
 cd $SLURM_SUBMIT_DIR || exit 1
 
 make clean
 make
-srun ./Particles2D_2024 ../Particles.inp
+mpirun ./Particles2D_2024 ../Particles.inp
 make tar

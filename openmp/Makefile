@@ -1,4 +1,4 @@
-CC = mpicc
+CC = mpiicx
 CFLAGS = -O3 -fopenmp -lm
 
 # Source file and target
