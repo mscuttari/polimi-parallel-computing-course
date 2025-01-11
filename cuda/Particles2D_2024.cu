@@ -577,7 +577,7 @@ void GeneratingField(struct i2dGrid *grid, int maxIterations) {
     int *sendBuffer = (int *) malloc(procElementsCounts[procId] * sizeof(int));
     memcpy(sendBuffer, grid->values + dataDisplacements[procId], procElementsCounts[procId] * sizeof(int));
 
-    MPI_Allgatherv(grid->values + dataDisplacements[procId], procElementsCounts[procId], MPI_INT,
+    MPI_Allgatherv(sendBuffer, procElementsCounts[procId], MPI_INT,
                    grid->values, procElementsCounts, dataDisplacements, MPI_INT,
                    MPI_COMM_WORLD);
     
