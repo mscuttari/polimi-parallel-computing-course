@@ -581,7 +581,7 @@ void GeneratingField(struct i2dGrid *grid, int maxIterations) {
                    grid->values, procElementsCounts, dataDisplacements, MPI_INT,
                    MPI_COMM_WORLD);
     
-    free(procElementsCounts);
+    free(sendBuffer);
     free(procElementsCounts);
     free(dataDisplacements);
 }
