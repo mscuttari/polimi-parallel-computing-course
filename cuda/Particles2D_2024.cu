@@ -818,6 +818,18 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
             checkCuda(cudaMemcpyAsync(d_vy, population->vy + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double), cudaMemcpyHostToDevice));
         }
 
+        // Set forces to zero.
+        cudaMemsetAsync(d_forces, 0, 2 * particlesPerProcess[procId] * sizeof(double));
+
+        // Launch CUDA kernel to compute and apply forces.
+        int numBlocks = (endParticle - beginParticle + BLOCK_SIZE - 1) / BLOCK_SIZE;
+
+        computeForces<<<numBlocks, BLOCK_SIZE>>>(population->amount, beginParticle, endParticle, d_weights, d_x, d_y, d_forces);
+        checkCuda(cudaGetLastError());
+        
+        applyForces<<<numBlocks, BLOCK_SIZE>>>(beginParticle, endParticle, timeStep, d_weights, d_x, d_y, d_vx, d_vy, d_forces);
+        checkCuda(cudaGetLastError());
+
         // Write the simulation frame and population statistics.
         if (procId == 0) {
             fprintf(stdout, "Step %d of %d\n", step, numSteps);
@@ -830,18 +842,6 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
             ParticleStats(*population, step);
         }
 
-        // Set forces to zero.
-        cudaMemsetAsync(d_forces, 0, 2 * particlesPerProcess[procId] * sizeof(double));
-
-        // Launch CUDA kernel to compute and apply forces.
-        int numBlocks = (endParticle - beginParticle + BLOCK_SIZE - 1) / BLOCK_SIZE;
-
-        computeForces<<<numBlocks, BLOCK_SIZE>>>(population->amount, beginParticle, endParticle, d_weights, d_x, d_y, d_forces);
-        checkCuda(cudaGetLastError());
-        
-        applyForces<<<numBlocks, BLOCK_SIZE>>>(beginParticle, endParticle, timeStep, d_weights, d_x, d_y, d_vx, d_vy, d_forces);
-        checkCuda(cudaGetLastError());
-        
         // Copy data back from device to host.
         checkCuda(cudaMemcpyAsync(population->x + particlesDisplacements[procId], d_x + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double), cudaMemcpyDeviceToHost));
         checkCuda(cudaMemcpyAsync(population->y + particlesDisplacements[procId], d_y + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double), cudaMemcpyDeviceToHost));
