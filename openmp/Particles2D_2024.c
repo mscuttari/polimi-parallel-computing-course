@@ -195,25 +195,39 @@ void applyForces(struct population *p, int beginParticle, int endParticle, doubl
 }
 
 void gatherParticles(struct population *population, int *particlesPerProcess, int *particlesDisplacements) {
-    MPI_Allgatherv(population->weight + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    double *sendBuffer = (double *) malloc(particlesPerProcess[procId] * sizeof(double));
+
+    memcpy(sendBuffer, population->weight + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->weight, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->x + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->x + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->x, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->y + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->y + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->y, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->vx + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->vx + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->vx, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
 
-    MPI_Allgatherv(population->vy + particlesDisplacements[procId], particlesPerProcess[procId], MPI_DOUBLE,
+    memcpy(sendBuffer, population->vy + particlesDisplacements[procId], particlesPerProcess[procId] * sizeof(double));
+
+    MPI_Allgatherv(sendBuffer, particlesPerProcess[procId], MPI_DOUBLE,
                    population->vy, particlesPerProcess, particlesDisplacements, MPI_DOUBLE,
                    MPI_COMM_WORLD);
+
+    free(sendBuffer);
 }
 
 void readConfiguration(char *InputFile) {
@@ -567,10 +581,14 @@ void GeneratingField(struct i2dGrid *grid, int maxIterations) {
         }
     }
 
-    MPI_Allgatherv(grid->values + dataDisplacements[procId], procElementsCounts[procId], MPI_INT,
+    int *sendBuffer = (int *) malloc(procElementsCounts[procId] * sizeof(int));
+    memcpy(sendBuffer, grid->values + dataDisplacements[procId], procElementsCounts[procId] * sizeof(int));
+
+    MPI_Allgatherv(sendBuffer, procElementsCounts[procId], MPI_INT,
                    grid->values, procElementsCounts, dataDisplacements, MPI_INT,
                    MPI_COMM_WORLD);
 
+    free(sendBuffer);
     free(procElementsCounts);
     free(dataDisplacements);
 }
