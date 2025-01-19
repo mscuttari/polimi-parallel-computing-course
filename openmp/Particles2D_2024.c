@@ -781,7 +781,6 @@ void ParticleScreen(struct i2dGrid *particleGrid, struct population population, 
     double Dx = particleGrid->xEnd - particleGrid->xBegin;
     double Dy = particleGrid->yEnd - particleGrid->yBegin;
 
-    #pragma omp parallel for default(none) shared(particleGrid, population, step, Xdots, Ydots, rmin, rmax, wint, Dx, Dy)
     for (int n = 0; n < population.amount; n++) {
         // Keep a tiny border free anyway.
         int ix = Xdots * population.x[n] / Dx;
