@@ -39,7 +39,7 @@ int ReadPopulation(char *fname) {
 }
 
 int main(int argc, char *argv[]) {
-    char fname[80];
+    char fname[256];
 
     if (argc < 2) {
         fprintf(stderr, "To be launched as: ReadPopulation <Population????.dmp>\n");
