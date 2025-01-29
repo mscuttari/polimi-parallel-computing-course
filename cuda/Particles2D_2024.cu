@@ -95,6 +95,9 @@ struct population {
 // MPI.
 int procId, nProcs;
 
+// CUDA.
+cudaDeviceProp deviceProp;
+
 // Configuration.
 int MaxIters, MaxSteps;
 double timeStep;
@@ -480,41 +483,39 @@ void readConfiguration(char *InputFile) {
 }
 
 __global__ void GeneratingFieldKernel(int *gridValues, int beginRow, int endRow, int width, double Ir, double Ii, double Xinc, double Yinc, int maxIterations) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x + beginRow * width;
+    int gridStride = gridDim.x * blockDim.x;
 
-    if (i >= endRow * width) {
-        return;
-    }
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x + beginRow * width; i < endRow * width; i += gridStride) {
+        int ix = i % width;
+        int iy = i / width;
 
-    int ix = i % width;
-    int iy = i / width;
+        double ca = Xinc * ix + Ir;
+        double cb = Yinc * iy + Ii;
+        double rad = sqrt(ca * ca * ((double) 1.0 + (cb / ca) * (cb / ca)));
 
-    double ca = Xinc * ix + Ir;
-    double cb = Yinc * iy + Ii;
-    double rad = sqrt(ca * ca * ((double) 1.0 + (cb / ca) * (cb / ca)));
+        double za, zb;
+        double zaNext = 0, zbNext = 0;
 
-    double za, zb;
-    double zaNext = 0, zbNext = 0;
+        int iz;
 
-    int iz;
+        for (iz = 1; iz <= maxIterations; iz++) {
+            if (rad > 2) {
+                break;
+            }
 
-    for (iz = 1; iz <= maxIterations; iz++) {
-        if (rad > 2) {
-            break;
+            za = zaNext;
+            zb = zbNext;
+            zaNext = ca + (za - zb) * (za + zb);
+            zbNext = 2.0 * (za * zb + cb / 2.0);
+            rad = sqrt(zaNext * zaNext * ((double) 1.0 + (zbNext / zaNext) * (zbNext / zaNext)));
         }
 
-        za = zaNext;
-        zb = zbNext;
-        zaNext = ca + (za - zb) * (za + zb);
-        zbNext = 2.0 * (za * zb + cb / 2.0);
-        rad = sqrt(zaNext * zaNext * ((double) 1.0 + (zbNext / zaNext) * (zbNext / zaNext)));
-    }
+        if (iz >= maxIterations) {
+            iz = 0;
+        }
 
-    if (iz >= maxIterations) {
-        iz = 0;
+        gridValues[index2D(ix, iy, width)] = iz;
     }
-
-    gridValues[index2D(ix, iy, width)] = iz;
 }
 
 void GeneratingField(struct i2dGrid *grid, int maxIterations) {
@@ -550,7 +551,6 @@ void GeneratingField(struct i2dGrid *grid, int maxIterations) {
     int beginRow = rowsPerProcess * procId;
     int endRow = rowsPerProcess * procId + processRowCount;
 
-    int totalCells = processRowCount * grid->width;
     int *d_gridValues;
 
     // Allocate memory on the GPU.
@@ -559,7 +559,7 @@ void GeneratingField(struct i2dGrid *grid, int maxIterations) {
     // Copy the data to the GPU.
     checkCuda(cudaMemcpy(d_gridValues, grid->values, grid->width * grid->height * sizeof(int), cudaMemcpyHostToDevice));
 
-    int numBlocks = (totalCells + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    int numBlocks = deviceProp.multiProcessorCount * 32;
 
     GeneratingFieldKernel<<<numBlocks, BLOCK_SIZE>>>(
             d_gridValues, beginRow, endRow, grid->width, grid->xBegin, grid->yBegin,
@@ -588,19 +588,21 @@ void GeneratingField(struct i2dGrid *grid, int maxIterations) {
 
 __global__ void
 countParticlesKernel(int *gridValues, int *np, int gridWidth, int beginRow, int endRow, int vmin, int vmax) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x + beginRow * gridWidth;
+    int gridStride = gridDim.x * blockDim.x;
 
-    if (i >= endRow * gridWidth) {
-        return;
-    }
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x + beginRow * gridWidth; i < endRow * gridWidth; i += gridStride) {
+        if (i >= endRow * gridWidth) {
+            return;
+        }
 
-    int ix = i % gridWidth;
-    int iy = i / gridWidth;
+        int ix = i % gridWidth;
+        int iy = i / gridWidth;
 
-    int v = gridValues[index2D(ix, iy, gridWidth)];
+        int v = gridValues[index2D(ix, iy, gridWidth)];
 
-    if (v >= vmin && v <= vmax) {
-        atomicAdd(np, 1);
+        if (v >= vmin && v <= vmax) {
+            atomicAdd(np, 1);
+        }
     }
 }
 
@@ -608,29 +610,27 @@ __global__ void initializeParticlesKernel(int *gridValues, int gridWidth, int gr
         int numOfParticles,
         double pgridXBegin, double pgridXEnd, double pgridYBegin, double pgridYEnd,
         int vmin, int vmax, int *initialized) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x + beginRow * gridWidth;
+    int gridStride = gridDim.x * blockDim.x;
 
-    if (i >= endRow * gridWidth) {
-        return;
-    }
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x + beginRow * gridWidth; i < endRow * gridWidth; i += gridStride) {
+        int ix = i % gridWidth;
+        int iy = i / gridWidth;
 
-    int ix = i % gridWidth;
-    int iy = i / gridWidth;
+        int v = gridValues[index2D(ix, iy, gridWidth)];
 
-    int v = gridValues[index2D(ix, iy, gridWidth)];
+        if (v >= vmin && v <= vmax) {
+            int particle = atomicAdd(initialized, 1);
 
-    if (v >= vmin && v <= vmax) {
-        int particle = atomicAdd(initialized, 1);
+            if (particle < numOfParticles) {
+                weights[particle] = v * 10.0;
+                double p;
 
-        if (particle < numOfParticles) {
-            weights[particle] = v * 10.0;
-            double p;
+                p = (pgridXEnd - pgridXBegin) * ix / (gridWidth * 2.0);
+                x[particle] = pgridXBegin + ((pgridXEnd - pgridXBegin) / 4.0) + p;
 
-            p = (pgridXEnd - pgridXBegin) * ix / (gridWidth * 2.0);
-            x[particle] = pgridXBegin + ((pgridXEnd - pgridXBegin) / 4.0) + p;
-
-            p = (pgridYEnd - pgridYBegin) * iy / (gridHeight * 2.0);
-            y[particle] = pgridYBegin + ((pgridYEnd - pgridYBegin) / 4.0) + p;
+                p = (pgridYEnd - pgridYBegin) * iy / (gridHeight * 2.0);
+                y[particle] = pgridYBegin + ((pgridYEnd - pgridYBegin) / 4.0) + p;
+            }
         }
     }
 }
@@ -654,13 +654,13 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
     checkCuda(cudaMalloc((void **) &d_np, sizeof(int)));
 
     int totalCells = grid.width * (endRow - beginRow);
-    int gridSize = (totalCells + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    int numBlocks = deviceProp.multiProcessorCount * 32;
 
     int *d_gridValues;
     checkCuda(cudaMalloc((void **) &d_gridValues, grid.width * grid.height * sizeof(int)));
     checkCuda(cudaMemcpy(d_gridValues, grid.values, grid.width * grid.height * sizeof(int), cudaMemcpyHostToDevice));
 
-    countParticlesKernel<<<gridSize, BLOCK_SIZE>>>(d_gridValues, d_np, grid.width, beginRow, endRow, vmin, vmax);
+    countParticlesKernel<<<numBlocks, BLOCK_SIZE>>>(d_gridValues, d_np, grid.width, beginRow, endRow, vmin, vmax);
     checkCuda(cudaGetLastError());
 
     checkCuda(cudaMemcpy(&np, d_np, sizeof(int), cudaMemcpyDeviceToHost));
@@ -701,7 +701,7 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
     checkCuda(cudaMalloc((void **) &d_y, particlesPerProcess[procId] * sizeof(double)));
 
     // Launch the particle initialization kernel
-    initializeParticlesKernel<<<gridSize, BLOCK_SIZE>>>(
+    initializeParticlesKernel<<<numBlocks, BLOCK_SIZE>>>(
             d_gridValues, grid.width, grid.height, beginRow, endRow,
             d_weights, d_x, d_y, particlesPerProcess[procId],
             pgrid.xBegin, pgrid.xEnd, pgrid.yBegin, pgrid.yEnd,
@@ -737,39 +737,37 @@ void ParticleGeneration(struct i2dGrid grid, struct i2dGrid pgrid, struct popula
 /// Compute the forces acting on p1 by p1-p2 interactions.
 /// The force is computed using the inverse-square law of gravitational attraction: F = k * m1 * m2 / d^2.
 __global__ void computeForces(int totalParticles, int beginParticle, int endParticle, double *weights, double *x, double *y, double *forces) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x + beginParticle;
+    int gridStride = gridDim.x * blockDim.x;
 
-    if (i >= endParticle) {
-        return;
-    }
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x + beginParticle; i < endParticle; i += gridStride) {
+        double fx = 0.0;
+        double fy = 0.0;
 
-    double fx = 0.0;
-    double fy = 0.0;
+        for (int j = 0; j < totalParticles; ++j) {
+            if (i != j) {
+                double k = 0.001;
+                double tiny = (double) 1.0 / (double) 1000000.0;
 
-    for (int j = 0; j < totalParticles; ++j) {
-        if (i != j) {
-            double k = 0.001;
-            double tiny = (double) 1.0 / (double) 1000000.0;
+                // Compute the (squared) distance between the two particles.
+                double dx = x[j] - x[i];
+                double dy = y[j] - y[i];
+                double d2 = dx * dx + dy * dy;
 
-            // Compute the (squared) distance between the two particles.
-            double dx = x[j] - x[i];
-            double dy = y[j] - y[i];
-            double d2 = dx * dx + dy * dy;
+                if (d2 < tiny) {
+                    // Avoid the case in which particles get in touch.
+                    d2 = tiny;
+                }
 
-            if (d2 < tiny) {
-                // Avoid the case in which particles get in touch.
-                d2 = tiny;
+                double force = (k * weights[i] * weights[j]) / d2;
+                fx += force * dx / sqrt(d2);
+                fy += force * dy / sqrt(d2);
             }
-
-            double force = (k * weights[i] * weights[j]) / d2;
-            fx += force * dx / sqrt(d2);
-            fy += force * dy / sqrt(d2);
         }
-    }
 
-    // Write results back to global memory.
-    forces[index2D(0, i - beginParticle, 2)] = fx;
-    forces[index2D(1, i - beginParticle, 2)] = fy;
+        // Write results back to global memory.
+        forces[index2D(0, i - beginParticle, 2)] = fx;
+        forces[index2D(1, i - beginParticle, 2)] = fy;
+    }
 }
 
 /// Compute the effects of forces on particles in a interval time.
@@ -777,17 +775,15 @@ __global__ void computeForces(int totalParticles, int beginParticle, int endPart
 /// v(t + dt) = v(t) + a(t)*dt.
 __global__ void
 applyForces(int beginParticle, int endParticle, double timeStep, double *weights, double *x, double *y, double *vx, double *vy, double *forces) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x + beginParticle;
+    int gridStride = gridDim.x * blockDim.x;
 
-    if (i >= endParticle) {
-        return;
+    for (int i = blockIdx.x * blockDim.x + threadIdx.x + beginParticle; i < endParticle; i += gridStride) {
+        x[i] = x[i] + (vx[i - beginParticle] * timeStep) + (0.5 * forces[index2D(0, i - beginParticle, 2)] * timeStep * timeStep / weights[i]);
+        vx[i - beginParticle] = vx[i - beginParticle] + forces[index2D(0, i - beginParticle, 2)] * timeStep / weights[i];
+
+        y[i] = y[i] + (vy[i - beginParticle] * timeStep) + (0.5 * forces[index2D(1, i - beginParticle, 2)] * timeStep * timeStep / weights[i]);
+        vy[i - beginParticle] = vy[i - beginParticle] + forces[index2D(1, i - beginParticle, 2)] * timeStep / weights[i];
     }
-
-    x[i] = x[i] + (vx[i - beginParticle] * timeStep) + (0.5 * forces[index2D(0, i - beginParticle, 2)] * timeStep * timeStep / weights[i]);
-    vx[i - beginParticle] = vx[i - beginParticle] + forces[index2D(0, i - beginParticle, 2)] * timeStep / weights[i];
-
-    y[i] = y[i] + (vy[i - beginParticle] * timeStep) + (0.5 * forces[index2D(1, i - beginParticle, 2)] * timeStep * timeStep / weights[i]);
-    vy[i - beginParticle] = vy[i - beginParticle] + forces[index2D(1, i - beginParticle, 2)] * timeStep / weights[i];
 }
 
 void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int numSteps) {
@@ -840,7 +836,7 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
         cudaMemsetAsync(d_forces, 0, 2 * particlesPerProcess[procId] * sizeof(double));
 
         // Launch CUDA kernel to compute and apply forces.
-        int numBlocks = (endParticle - beginParticle + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        int numBlocks = deviceProp.multiProcessorCount * 32;
 
         computeForces<<<numBlocks, BLOCK_SIZE>>>(population->amount, beginParticle, endParticle, d_weights, d_x, d_y, d_forces);
         checkCuda(cudaGetLastError());
@@ -1225,7 +1221,10 @@ int main(int argc, char *argv[]) {
     // Select the GPU.
     int numGPUs= 0;
     cudaGetDeviceCount(&numGPUs);
-    checkCuda(cudaSetDevice(procId % numGPUs));
+
+    int device = procId % numGPUs;
+    checkCuda(cudaSetDevice(device));
+    checkCuda(cudaGetDeviceProperties(&deviceProp, device));
 
     printf("Process %d using GPU %d\n", procId, procId % numGPUs);
     MPI_Barrier(MPI_COMM_WORLD);
