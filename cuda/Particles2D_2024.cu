@@ -822,6 +822,18 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
 
     checkCuda(cudaMemcpyAsync(d_weights, population->weight, population->amount * sizeof(double), cudaMemcpyHostToDevice));
 
+    // Heuristically optimize occupancy.
+    int blockSize[2];   // The launch configurator returned block size.
+    int minGridSize[2]; // The minimum grid size needed to achieve the maximum occupancy for a full device launch.
+    int gridSize[2];    // The actual grid size needed, based on input size.
+
+    cudaOccupancyMaxPotentialBlockSize(&minGridSize[0], &blockSize[0], (void*) computeForces, 0, particlesPerProcess[procId]);
+    cudaOccupancyMaxPotentialBlockSize(&minGridSize[1], &blockSize[1], (void*) applyForces, 0, particlesPerProcess[procId]);
+
+    for (int i = 0; i < 2; ++i) {
+        gridSize[i] = (particlesPerProcess[procId] + blockSize[i] - 1) / blockSize[i];
+    }
+
     // Compute forces acting on each particle step by step.
     for (int step = 0; step < numSteps; step++) {
         // Copy data from host to device.
@@ -836,12 +848,10 @@ void SystemEvolution(struct i2dGrid *pgrid, struct population *population, int n
         cudaMemsetAsync(d_forces, 0, 2 * particlesPerProcess[procId] * sizeof(double));
 
         // Launch CUDA kernel to compute and apply forces.
-        int numBlocks = deviceProp.multiProcessorCount * 32;
-
-        computeForces<<<numBlocks, BLOCK_SIZE>>>(population->amount, beginParticle, endParticle, d_weights, d_x, d_y, d_forces);
+        computeForces<<<gridSize[0], blockSize[0]>>>(population->amount, beginParticle, endParticle, d_weights, d_x, d_y, d_forces);
         checkCuda(cudaGetLastError());
         
-        applyForces<<<numBlocks, BLOCK_SIZE>>>(beginParticle, endParticle, timeStep, d_weights, d_x, d_y, d_vx, d_vy, d_forces);
+        applyForces<<<gridSize[1], blockSize[1]>>>(beginParticle, endParticle, timeStep, d_weights, d_x, d_y, d_vx, d_vy, d_forces);
         checkCuda(cudaGetLastError());
 
         // Write the simulation frame and population statistics.
