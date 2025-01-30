@@ -74,7 +74,6 @@ struct i2dGrid {
     int width, height;                  // Extensions in X and Y directions
     double xBegin, xEnd, yBegin, yEnd;  // Initial and final value for X and Y directions
     int *values;                        // 2D matrix of values
-    int *gpuValues;
 };
 
 struct particle {
